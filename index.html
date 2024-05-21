@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+</head>
+<body>
+    <input type="file" id="fileInput">
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                uploadFile(file);
+            }
+        });
+
+        function uploadFile(file) {
+            const chunkSize = 1 * 1024 ; // 1KB
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            let currentChunk = 0;
+
+            function uploadChunk(start) {
+                const end = Math.min(start + chunkSize, file.size);
+                const chunk = file.slice(start, end);
+                const formData = new FormData();
+                formData.append('file', chunk);
+                formData.append('filename', file.name);
+                formData.append('chunkNumber', currentChunk);
+                formData.append('totalChunks', totalChunks);
+
+                fetch('http://localhost:3000/upload', {
+                    method: 'POST',
+                    body: formData
+                }).then(response => {
+                    if (response.ok) {
+                        currentChunk++;
+                        if (currentChunk < totalChunks) {
+                            uploadChunk(currentChunk * chunkSize);
+                        } else {
+                            console.log('Upload complete');
+                        }
+                    } else {
+                        console.error('Upload failed');
+                    }
+                }).catch(error => {
+                    console.error('Upload error', error);
+                });
+            }
+
+            uploadChunk(0);
+        }
+    </script>
+</body>
+</html>
