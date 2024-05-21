@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+</head>
+
+<body>
+    <p>upload single file</p>
+    <input type="file" id="single-file">
+
+    <p>upload file chunks</p>
+    <input type="file" id="fileInput">
+
+    <script>
+        // 单文件上传
+        document.getElementById('single-file').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+
+            const formData = new FormData()
+            formData.append('file', file)
+            fetch('http://localhost:3000/upload', {
+                method: 'POST',
+                body: formData
+            }).then(res => {
+                console.log(res);
+            })
+        })
+
+        // 分片上传
+        document.getElementById('fileInput').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                uploadFile(file);
+            }
+        });
+
+        function uploadFile(file) {
+            const chunkSize = 1 * 1024; // 1KB
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            let currentChunk = 0;
+
+            let progress = 0;
+
+            function uploadChunk(start) {
+                const end = Math.min(start + chunkSize, file.size);
+                const chunk = file.slice(start, end);
+                const formData = new FormData();
+                formData.append('file', chunk);
+                formData.append('filename', file.name);
+                formData.append('chunkNumber', currentChunk);
+                formData.append('totalChunks', totalChunks);
+
+                fetch('http://localhost:9000/upload', {
+                    method: 'POST',
+                    body: formData
+                }).then(response => {
+                    if (response.ok) {
+                        currentChunk++;
+
+                        progress = ((currentChunk / totalChunks) * 100).toFixed(2) + '%';
+                        console.log('progress:',progress);
+
+                        if (currentChunk < totalChunks) {
+                            uploadChunk(currentChunk * chunkSize);
+                        } else {
+                            console.log('Upload complete');
+                        }
+                    } else {
+                        console.error('Upload failed');
+                    }
+                }).catch(error => {
+                    console.error('Upload error', error);
+                });
+            }
+
+            uploadChunk(0);
+        }
+    </script>
+</body>
+
+</html>
